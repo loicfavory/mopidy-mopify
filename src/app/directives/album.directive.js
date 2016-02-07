@@ -1,162 +1,222 @@
 'use strict';
 
 angular.module('mopify.widgets.directive.album', [
-    "mopify.services.mopidy",
-    "mopify.services.station",
-    "mopify.services.util",
-    "mopify.modal.playlistselect",
-    "ui.bootstrap",
-    "spotify",
-    'mopify.services.spotifylogin',
-    'mopify.services.servicemanager',
-    "llNotifier",
-    "mopify.widgets.directive.stoppropagation"
-])
+		"mopify.services.mopidy",
+		"mopify.services.station",
+		"mopify.services.util",
+		"mopify.modal.playlistselect",
+		"ui.bootstrap",
+		"spotify",
+		'mopify.services.spotifylogin',
+		'mopify.services.servicemanager',
+		"llNotifier",
+		"mopify.widgets.directive.stoppropagation"
+	])
 
-.directive('mopifyAlbum', function mopifyAlbum($modal, $location, mopidyservice, stationservice, prompt, util, PlaylistManager, notifier, Spotify, SpotifyLogin, ServiceManager) {
+	.directive('mopifyAlbum', function mopifyAlbum($modal, $location, mopidyservice, stationservice, prompt, util, PlaylistManager, notifier, Spotify, SpotifyLogin, ServiceManager, $filter)
+	{
 
-    return {
-        restrict: 'E',
-        scope: {
-            album: '='
-        },
-        replace: true,
-        templateUrl: 'directives/album.directive.tmpl.html',
-        link: function(scope, element, attrs) {
+		return {
+			restrict   : 'E',
+			scope      : {
+				album: '='
+			},
+			replace    : true,
+			templateUrl: 'directives/album.directive.tmpl.html',
+			link       : function (scope, element, attrs)
+			{
 
-            var encodedname = encodeURIComponent( scope.album.name.replace(/\//g, "-") );
-            scope.tracklistUrl = "/music/tracklist/" + scope.album.uri + "/" + encodedname;
+				var encodedname = encodeURIComponent(scope.album.name.replace(/\//g, "-"));
+				scope.tracklistUrl = "/music/tracklist/" + scope.album.uri + "/" + encodedname;
 
-            scope.showSaveAlbum = false;
-            scope.albumAlreadySaved = false;
+				scope.showSaveAlbum = false;
+				scope.albumAlreadySaved = false;
 
-            scope.visible = true;
+				scope.visible = true;
 
-            // Check if album has 'Various Artists'
-            if(scope.album.artists !== undefined){
-                if(scope.album.artists.length < 4){
-                    scope.artiststring = util.artistsToString(scope.album.artists);
-                }
-                else{
-                    scope.artiststring = "Various Artists";
-                }
-            }
+				// Check if album has 'Various Artists'
+				if (scope.album.artists !== undefined)
+				{
+					if (scope.album.artists.length < 4)
+					{
+						scope.artiststring = util.artistsToString(scope.album.artists);
+					}
+					else
+					{
+						scope.artiststring = "Various Artists";
+					}
+				}
 
-            var albumtracks = [];
 
-            /*
-             * Play the album
-             */
-            scope.play = function(){
-                mopidyservice.getAlbum(scope.album.uri).then(function(tracks){
-                    mopidyservice.playTrack(tracks[0], tracks);
-                });
-            };
+				scope.infos_string = '';
+				var dateRegEx = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/g;
+				var yearRegEx = /^[0-9]{4}$/g;
 
-            /**
-             * Start a new station from the album's URI
-             */
-            scope.startStation = function(){
-                stationservice.startFromSpotifyUri(scope.album.uri);
-            };
+				if (dateRegEx.test(scope.album.release_date))
+				{
+					scope.infos_string = $filter('date')(scope.album.release_date, 'yyyy');
+				}
+				else if (yearRegEx.test(scope.album.release_date))
+				{
+					scope.infos_string = scope.album.release_date;
+				}
 
-            /**
-             * Add album to queue
-             */
-            scope.addToQueue = function(){
-                mopidyservice.addToTracklist({ uri: scope.album.uri });
-            };
+				if (scope.album.tracks !== undefined)
+				{
+					if (scope.infos_string !== '')
+					{
+						scope.infos_string += " / ";
+					}
+					if (scope.album.tracks.items.length > 1)
+					{
+						scope.infos_string += (scope.album.tracks.items.length) + " tracks";
+					}
+					else
+					{
+						scope.infos_string += (scope.album.tracks.items.length) + " track";
+					}
+				}
 
-            /**
-             * Show the available playlists
-             */
-            scope.showPlaylists = function(){
-                // Open the playlist select modal
-                var modalInstance = $modal.open({
-                    templateUrl: 'modals/playlistselect.tmpl.html',
-                    controller: 'PlaylistSelectModalController',
-                    size: 'lg'
-                });
 
-                // Add to playlist on result
-                modalInstance.result.then(function (selectedplaylist) {
-                    // Get playlist id from uri
-                    var playlistid = selectedplaylist.split(":")[4];
+				var albumtracks = [];
 
-                    // add track
-                    PlaylistManager.addAlbum(playlistid, scope.album.uri).then(function(response){
-                        notifier.notify({type: "custom", template: "Album succesfully added to playlist.", delay: 3000});
-                    }, function(){
-                        notifier.notify({type: "custom", template: "Can't add album. Are you connected with Spotify and the owner if this playlist?", delay: 5000});
-                    });
-                });
-            };
+				/*
+				 * Play the album
+				 */
+				scope.play = function ()
+				{
+					mopidyservice.getAlbum(scope.album.uri).then(function (tracks)
+					{
+						mopidyservice.playTrack(tracks[0], tracks);
+					});
+				};
 
-            /*
-             * Save or remove the album's tracks to/from the user's library
-             */
-            scope.toggleSaveAlbum = function(){
-                if(ServiceManager.isEnabled("spotify") && SpotifyLogin.connected){
+				/**
+				 * Start a new station from the album's URI
+				 */
+				scope.startStation = function ()
+				{
+					stationservice.startFromSpotifyUri(scope.album.uri);
+				};
 
-                    if(scope.albumAlreadySaved){
-                        // Remove
-                        Spotify.removeUserTracks(albumtracks).then(function (data) {
-                            notifier.notify({type: "custom", template: "Album succesfully removed.", delay: 5000});
-                            scope.visible = false;
+				/**
+				 * Add album to queue
+				 */
+				scope.addToQueue = function ()
+				{
+					mopidyservice.addToTracklist({uri: scope.album.uri});
+				};
 
-                        }, function(data){
-                            notifier.notify({type: "custom", template: "Something wen't wrong, please try again.", delay: 5000});
-                        });
-                    }
-                    else{
-                        // Save
-                        Spotify.saveUserTracks(albumtracks).then(function (data) {
-                            notifier.notify({type: "custom", template: "Album succesfully saved.", delay: 5000});
-                        }, function(data){
-                            notifier.notify({type: "custom", template: "Something wen't wrong, please try again.", delay: 5000});
-                        });
-                    }
+				/**
+				 * Show the available playlists
+				 */
+				scope.showPlaylists = function ()
+				{
+					// Open the playlist select modal
+					var modalInstance = $modal.open({
+						templateUrl: 'modals/playlistselect.tmpl.html',
+						controller : 'PlaylistSelectModalController',
+						size       : 'lg'
+					});
 
-                }
-                else{
-                    notifier.notify({type: "custom", template: "Can't add album. Are you connected with Spotify?", delay: 5000});
-                }
-            };
+					// Add to playlist on result
+					modalInstance.result.then(function (selectedplaylist)
+					{
+						// Get playlist id from uri
+						var playlistid = selectedplaylist.split(":")[4];
 
-            /**
-             * On context show callback checks if the user is following the current album's tracks
-             */
-            scope.onContextShow = function(){
-                if(ServiceManager.isEnabled("spotify") && SpotifyLogin.connected){
+						// add track
+						PlaylistManager.addAlbum(playlistid, scope.album.uri).then(function (response)
+						{
+							notifier.notify({type: "custom", template: "Album succesfully added to playlist.", delay: 3000});
+						}, function ()
+						{
+							notifier.notify({type: "custom", template: "Can't add album. Are you connected with Spotify and the owner if this playlist?", delay: 5000});
+						});
+					});
+				};
 
-                    // First get the album's tracks
-                    Spotify.getAlbumTracks(scope.album.uri, {limit: 50}).then(function(response){
-                        albumtracks = _.map(response.items, function(track){
-                            return track.id;
-                        });
+				/*
+				 * Save or remove the album's tracks to/from the user's library
+				 */
+				scope.toggleSaveAlbum = function ()
+				{
+					if (ServiceManager.isEnabled("spotify") && SpotifyLogin.connected)
+					{
 
-                        // Check if the user is already following the tracks
-                        Spotify.userTracksContains(albumtracks).then(function (following) {
-                            scope.albumAlreadySaved = following[0];
-                        });
-                    });
+						if (scope.albumAlreadySaved)
+						{
+							// Remove
+							Spotify.removeUserTracks(albumtracks).then(function (data)
+							{
+								notifier.notify({type: "custom", template: "Album succesfully removed.", delay: 5000});
+								scope.visible = false;
 
-                    scope.showSaveAlbum = true;
-                }
-                else{
-                    scope.showSaveAlbum = false;
-                }
-            };
+							}, function (data)
+							{
+								notifier.notify({type: "custom", template: "Something wen't wrong, please try again.", delay: 5000});
+							});
+						}
+						else
+						{
+							// Save
+							Spotify.saveUserTracks(albumtracks).then(function (data)
+							{
+								notifier.notify({type: "custom", template: "Album succesfully saved.", delay: 5000});
+							}, function (data)
+							{
+								notifier.notify({type: "custom", template: "Something wen't wrong, please try again.", delay: 5000});
+							});
+						}
 
-            /**
-             * Go to the album's tracklist page
-             *
-             * @return {void}
-             */
-            scope.openAlbumTracklist = function() {
-                $location.path(scope.tracklistUrl);
-            };
-        }
-    };
+					}
+					else
+					{
+						notifier.notify({type: "custom", template: "Can't add album. Are you connected with Spotify?", delay: 5000});
+					}
+				};
 
-});
+				/**
+				 * On context show callback checks if the user is following the current album's tracks
+				 */
+				scope.onContextShow = function ()
+				{
+					if (ServiceManager.isEnabled("spotify") && SpotifyLogin.connected)
+					{
+
+						// First get the album's tracks
+						Spotify.getAlbumTracks(scope.album.uri, {limit: 50}).then(function (response)
+						{
+							albumtracks = _.map(response.items, function (track)
+							{
+								return track.id;
+							});
+
+							// Check if the user is already following the tracks
+							Spotify.userTracksContains(albumtracks).then(function (following)
+							{
+								scope.albumAlreadySaved = following[0];
+							});
+						});
+
+						scope.showSaveAlbum = true;
+					}
+					else
+					{
+						scope.showSaveAlbum = false;
+					}
+				};
+
+				/**
+				 * Go to the album's tracklist page
+				 *
+				 * @return {void}
+				 */
+				scope.openAlbumTracklist = function ()
+				{
+					$location.path(scope.tracklistUrl);
+				};
+			}
+		};
+
+	});

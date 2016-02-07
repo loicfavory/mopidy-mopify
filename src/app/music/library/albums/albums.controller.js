@@ -91,8 +91,20 @@ angular.module('mopify.music.library.albums', [
                     album.artists = artists;
                 });
 
-                // Concat with previous tracks
-                $scope.albums = $scope.albums.concat(albums);
+                // The search request only returns limited information about an album
+                // so lets get some more information
+                Spotify.getAlbums(_.map(albums, function (album)
+                {
+                    return album.id;
+                })).then(function (response)
+                {
+                    angular.extend(albums, response.albums);
+
+
+                    // Concat with previous tracks
+                    $scope.albums = $scope.albums.concat(albums);
+                });
+
 
                 if(response.next !== null)
                     loadSpotifyLibraryTracks(offset + 50);

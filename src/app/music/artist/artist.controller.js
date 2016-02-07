@@ -118,7 +118,19 @@ angular.module('mopify.music.artist', [
     };
 
     Spotify.getArtistAlbums($scope.artistId, options).then(function(data){
-        $scope.albums = data.items;
+
+
+        // The search request only returns limited information about an album
+        // so lets get some more information
+        Spotify.getAlbums(_.map(data.items, function (album)
+        {
+            return album.id;
+        })).then(function (response)
+        {
+            angular.extend(data.items, response.albums);
+            // Concat with previous tracks
+            $scope.albums = data.items;
+        });
     });
 
     /**

@@ -62,16 +62,18 @@ angular.module('mopify.search', [
     // Keep track of previous query
     var previousQuery = $routeParams.query || '';
     /**
-     * Event listener for typing
-     * @param  {object} event
-     * @return {void}
-     */
+		 * Event listener for typing
+		 * @param  {object} event
+		 * @return {void}
+		 */
     $scope.typing = function (event) {
       // Close the search overlay on ESC press
-      if (event !== undefined && event.keyCode === 27)
+      if (event !== undefined && event.keyCode === 27) {
         $scope.closeSearch();
-      if ($scope.query.trim().length === 0 || $scope.query === previousQuery)
+      }
+      if ($scope.query.trim().length === 0 || $scope.query === previousQuery) {
         return;
+      }
       // Set previous query
       previousQuery = $scope.query;
       // Set loading
@@ -82,20 +84,21 @@ angular.module('mopify.search', [
       typingTimeout = $timeout(function () {
         // Set search param
         $location.search('query', $scope.query);
-        if ($scope.query.trim().length > 1)
+        if ($scope.query.trim().length > 1) {
           $scope.performSearch();
+        }
       }, 1000);
     };
     /**
-     * Close the search overlay
-     * @return {void}
-     */
+		 * Close the search overlay
+		 * @return {void}
+		 */
     $scope.closeSearch = function () {
       $location.url($routeParams.refer || '/');
     };
     /*
-     * Perform a search with the current query
-     */
+		 * Perform a search with the current query
+		 */
     $scope.performSearch = function performSearch() {
       var searchableItems = !SpotifyLogin.connected ? 'album,artist' : 'album,artist,playlist';
       var resultsloaded = 0;
@@ -120,35 +123,39 @@ angular.module('mopify.search', [
           angular.extend($scope.results.albums.items, response.albums);
         });
         resultsloaded++;
-        if (resultsloaded == 2)
+        if (resultsloaded == 2) {
           getTopMatchingResult($scope.query, $scope.results);
+        }
       });
       mopidyservice.search($scope.query).then(function (data) {
-        if (data[0].tracks !== undefined) {
+        if (data.length > 0 && data[0].tracks !== undefined) {
           $scope.results.tracks = data[0].tracks.splice(0, 100);
         }
         // Check if all data is loaded and if it is; calculate the topresult
         resultsloaded++;
-        if (resultsloaded == 2)
+        if (resultsloaded == 2) {
           getTopMatchingResult($scope.query, $scope.results);
+        }
       });
     };
     // Run on load
     $scope.$on('mopidy:state:online', function () {
       typingTimeout = $timeout(function () {
-        if ($scope.query.trim().length > 1)
+        if ($scope.query.trim().length > 1) {
           $scope.performSearch();
+        }
       }, 250);
     });
     if (mopidyservice.isConnected) {
       typingTimeout = $timeout(function () {
-        if ($scope.query.trim().length > 1)
+        if ($scope.query.trim().length > 1) {
           $scope.performSearch();
+        }
       }, 250);
     }
     /**
-     * Play the songs that are given in the topresult
-     */
+		 * Play the songs that are given in the topresult
+		 */
     $scope.playTopItem = function () {
       mopidyservice.lookup($scope.topresult.item.uri).then(function (response) {
         var tracks = response[$scope.topresult.item.uri];
@@ -156,27 +163,28 @@ angular.module('mopify.search', [
       });
     };
     /**
-     * Start a station from the top result
-     */
+		 * Start a station from the top result
+		 */
     $scope.startTopItemStation = function () {
       stationservice.startFromSpotifyUri($scope.topresult.item.uri);
     };
     /**
-     * Toggle the number of results that should be shown
-     * @param  {string} item category: artists, albums, tracks, playlists
-     * @return {[type]}      [description]
-     */
+		 * Toggle the number of results that should be shown
+		 * @param  {string} item category: artists, albums, tracks, playlists
+		 * @return {[type]}      [description]
+		 */
     $scope.searchLimitsToggle = function (item) {
-      if ($scope.searchLimits[item] == 50)
+      if ($scope.searchLimits[item] == 50) {
         $scope.searchLimits[item] = item != 'tracks' ? 8 : 15;
-      else
+      } else {
         $scope.searchLimits[item] = 50;
+      }
     };
     /**
-     * Get the top matching resutls from the given batch
-     * @param  {string} search  The search string to check against
-     * @param  {object} results All the results from spotify and mopidy
-     */
+		 * Get the top matching resutls from the given batch
+		 * @param  {string} search  The search string to check against
+		 * @param  {object} results All the results from spotify and mopidy
+		 */
     function getTopMatchingResult(search, results) {
       var bestmatch = null;
       var resultitem = {};
@@ -227,11 +235,11 @@ angular.module('mopify.search', [
       $scope.topresult = resultitem;
     }
     /**
-     * Compute the edit distance between the two given strings
-     * @param  {string} a
-     * @param  {string} b
-     * @return {int}   the number that represents the distance
-     */
+		 * Compute the edit distance between the two given strings
+		 * @param  {string} a
+		 * @param  {string} b
+		 * @return {int}   the number that represents the distance
+		 */
     function levenshteinDistance(a, b) {
       if (a.length === 0)
         return b.length;
